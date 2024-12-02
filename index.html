@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toronyépítő játék</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1abc9c;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+            background: #ecf0f1;
+        }
+        #scoreboard {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: #2c3e50;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreboard">Pontszám: 0</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreboard = document.getElementById('scoreboard');
+
+        // Canvas méretei
+        canvas.width = 400;
+        canvas.height = 600;
+
+        // Játékállapot változók
+        let blocks = [];
+        let currentBlock = null;
+        let baseWidth = 150;
+        let baseHeight = 20;
+        let gameRunning = true;
+        let score = 0;
+        let blockColor = '#3498db'; // Kezdeti blokk szín
+        let cameraY = canvas.height; // Kamera kezdetben a vászon alján van
+
+        function createBlock() {
+            const width = blocks.length === 0 ? baseWidth : blocks[blocks.length - 1].width;
+            const height = baseHeight;
+            const x = 0;
+            const y = blocks.length === 0 
+                ? canvas.height - baseHeight + cameraY 
+                : blocks[blocks.length - 1].y - baseHeight;
+            const speed = 2 + score * 0.1;
+            return { x, y, width, height, speed, movingRight: true };
+        }
+
+        function drawBlock(block) {
+            // Csak a látható tartományban rajzoljuk ki a blokkokat
+            if (block.y - cameraY + canvas.height >= 0 && block.y - cameraY <= canvas.height) {
+                ctx.fillStyle = blockColor;
+                ctx.fillRect(block.x, block.y - cameraY, block.width, block.height);
+            }
+        }
+
+        function updateBlockPosition(block) {
+            if (block.movingRight) {
+                block.x += block.speed;
+                if (block.x + block.width >= canvas.width) block.movingRight = false;
+            } else {
+                block.x -= block.speed;
+                if (block.x <= 0) block.movingRight = true;
+            }
+        }
+
+        function placeBlock() {
+            if (!currentBlock) return;
+
+            const lastBlock = blocks[blocks.length - 1];
+            if (lastBlock) {
+                const overlap = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width) - Math.max(lastBlock.x, currentBlock.x);
+                if (overlap <= 0) {
+                    gameRunning = false;
+                    alert(`Játék vége! Elért pontszám: ${score}`);
+                    location.reload(); // Újratöltés
+                    return;
+                }
+                currentBlock.width = overlap;
+                currentBlock.x = Math.max(lastBlock.x, currentBlock.x);
+            }
+
+            blocks.push(currentBlock);
+            score++;
+            scoreboard.textContent = `Pontszám: ${score}`;
+
+            if (score === 10) {
+                document.body.style.background = '#9b59b6'; // Háttérszín váltás
+                blockColor = '#e74c3c'; // Blokkok új színe
+            }
+
+            currentBlock = createBlock();
+
+            // Kamera pozíció frissítése a legfelső 6 blokkra
+            if (blocks.length > 6) {
+                cameraY = blocks[blocks.length - 6].y - canvas.height + baseHeight;
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            blocks.forEach(block => drawBlock(block));
+
+            if (currentBlock) {
+                updateBlockPosition(currentBlock);
+                drawBlock(currentBlock);
+            }
+
+            if (gameRunning) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        currentBlock = createBlock();
+
+        canvas.addEventListener('click', placeBlock);
+
+        gameLoop();
+    </script>
+</body>
+</html>
